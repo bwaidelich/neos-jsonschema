@@ -8,8 +8,6 @@ namespace Neos\JsonSchema\Validation;
  * The canonical vocabulary of validation failure kinds. A {@see Issue} carries the *string* value (so that
  * consumers – and the neos/schematic pipeline, which adds its own phase-2 codes – can share one Issue type);
  * match against this enum via {@see self::tryFrom()}.
- *
- * Modelled after the issue codes of wwwision/types.
  */
 enum IssueCode: string
 {

@@ -1,0 +1,41 @@
+{
+    "name": "neos/jsonschema",
+    "description": "PHP Classes to represent JSON schema, see https://json-schema.org/",
+    "type": "library",
+    "license": "MIT",
+    "support": {
+        "source": "https://github.com/neos/jsonschema.git",
+        "forum": "https://discuss.neos.io/",
+        "docs": "https://docs.neos.io/"
+    },
+    "require": {
+        "php": ">=8.3"
+    },
+    "require-dev": {
+        "roave/security-advisories": "dev-latest",
+        "phpstan/phpstan": "^2",
+        "friendsofphp/php-cs-fixer": "^3",
+        "phpunit/phpunit": "^10 || ^11 || ^12"
+    },
+    "autoload": {
+        "psr-4": {
+            "Neos\\JsonSchema\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Neos\\JsonSchema\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test:phpstan": "phpstan",
+        "test:cs": "php-cs-fixer check",
+        "test:cs:fix": "php-cs-fixer fix",
+        "test:phpunit": "phpunit",
+        "test": [
+            "@test:phpstan",
+            "@test:cs",
+            "@test:phpunit"
+        ]
+    }
+}

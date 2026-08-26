@@ -244,13 +244,13 @@ final class ValidatorTest extends TestCase
     public function testFailLoudOnReference(): void
     {
         $this->expectException(UnsupportedKeywordException::class);
-        (void) ReferenceSchema::create('#/$defs/foo')->validate('x');
+        ReferenceSchema::create('#/$defs/foo')->validate('x');
     }
 
     public function testFailLoudOnUnevaluatedItems(): void
     {
         $schema = ArraySchema::create(items: StringSchema::create(), unevaluatedItems: false);
         $this->expectException(UnsupportedKeywordException::class);
-        (void) $schema->validate(['a']);
+        $schema->validate(['a']);
     }
 }

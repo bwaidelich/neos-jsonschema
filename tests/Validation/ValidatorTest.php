@@ -63,7 +63,8 @@ final class ValidatorTest extends TestCase
     public function testAnUnenforceablePatternIsNotReportedAsAnInvalidValue(): void
     {
         $this->expectException(UnsupportedKeywordException::class);
-        (void) StringSchema::create(pattern: '^(unclosed$')->validate('anything');
+        // the result is never produced: the call throws before it can return one
+        $unreached = StringSchema::create(pattern: '^(unclosed$')->validate('anything');
     }
 
     public function testStringIsNotNormalizedByDefault(): void

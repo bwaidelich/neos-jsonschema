@@ -349,7 +349,8 @@ final class NormalizationTest extends TestCase
     public function testUnsupportedKeywordsStillThrow(): void
     {
         $this->expectException(UnsupportedKeywordException::class);
-        (void) ReferenceSchema::create('#/$defs/contact')->validate([]);
+        // the result is never produced: the call throws before it can return one
+        $unreached = ReferenceSchema::create('#/$defs/contact')->validate([]);
     }
 
     public function testTheValueOfAnInvalidResultIsNotRetrievable(): void

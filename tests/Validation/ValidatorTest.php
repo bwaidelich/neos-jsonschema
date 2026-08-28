@@ -18,6 +18,7 @@ use Neos\JsonSchema\Support\ArrayItems;
 use Neos\JsonSchema\Support\Discriminator;
 use Neos\JsonSchema\Support\ObjectProperties;
 use Neos\JsonSchema\Support\StringFormat;
+use Neos\JsonSchema\Validation\Assertions;
 use Neos\JsonSchema\Validation\IssueCode;
 use Neos\JsonSchema\Validation\UnsupportedKeywordException;
 use Neos\JsonSchema\Validation\ValidationResult;
@@ -25,6 +26,7 @@ use Neos\JsonSchema\Validation\Validator;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
+#[CoversClass(Assertions::class)]
 #[CoversClass(Validator::class)]
 final class ValidatorTest extends TestCase
 {
@@ -42,9 +44,31 @@ final class ValidatorTest extends TestCase
         self::assertTrue($schema->validate('abcd')->valid);
     }
 
-    public function testStringDoesNotCoerceType(): void
+    public function testPatternContainingTheDefaultDelimiter(): void
     {
-        // the Validator, unlike the Coercer, must NOT accept a numeric string as an integer
+        self::assertTrue(StringSchema::create(pattern: '^a~b$')->validate('a~b')->valid);
+        self::assertFalse(StringSchema::create(pattern: '^a~b$')->validate('axb')->valid);
+    }
+
+    /**
+     * A pattern may escape the delimiter itself – escaping it a second time would turn "\~" into "\\~", i.e. a
+     * literal backslash followed by the closing delimiter.
+     */
+    public function testPatternEscapingTheDefaultDelimiter(): void
+    {
+        self::assertTrue(StringSchema::create(pattern: '^\~$')->validate('~')->valid);
+        self::assertFalse(StringSchema::create(pattern: '^\~$')->validate('x')->valid);
+    }
+
+    public function testAnUnenforceablePatternIsNotReportedAsAnInvalidValue(): void
+    {
+        $this->expectException(UnsupportedKeywordException::class);
+        (void) StringSchema::create(pattern: '^(unclosed$')->validate('anything');
+    }
+
+    public function testStringIsNotNormalizedByDefault(): void
+    {
+        // without Normalization::Scalars, a numeric string is NOT accepted as an integer
         $result = IntegerSchema::create()->validate('30');
         self::assertFalse($result->valid);
         self::assertSame([IssueCode::InvalidType->value], $this->codes($result));

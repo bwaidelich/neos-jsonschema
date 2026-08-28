@@ -81,8 +81,7 @@ assert(json_encode($schema, JSON_PRETTY_PRINT) === $expected);
 ## Validating a value
 
 Every schema can validate a value against itself via `$schema->validate($value)`, which returns a `ValidationResult`
-(either valid, or the aggregated, path-located issues). Validation is *standard* JSON Schema — it does **not** coerce,
-so the value must already be the right primitive type (that non-standard normalization lives in `neos/schematic`):
+— either valid, or the aggregated, path-located issues:
 
 ```php
 $schema = StringSchema::create(minLength: 3, pattern: '^[a-z]+$');
@@ -94,11 +93,41 @@ assert($result->valid === false);
 assert($result->issues->codes() === ['invalid_pattern']);
 ```
 
+A valid result also carries the value **as the schema read it**, via `$result->value()`: object properties in the
+order the schema declares them, keys the schema does not declare dropped, `stdClass` input unwrapped to an array.
+That is the value to hand on to whatever maps it onto your own types:
+
+```php
+$schema = ObjectSchema::create(
+    properties: ObjectProperties::create(
+        title: StringSchema::create(),
+        pages: IntegerSchema::create(),
+    ),
+);
+
+$result = $schema->validate(['pages' => 42, 'title' => 'Dune', 'undeclared' => true]);
+assert($result->value() === ['title' => 'Dune', 'pages' => 42]);
+```
+
+### Input that is always a string
+
+Validation is *standard* JSON Schema by default: `"42"` is a string, not an integer. But a path, query or header
+parameter is only ever a string, so judging one that way rejects everything. Pass `Normalization::Scalars` for those
+call sites, and a scalar that is merely *spelled* like the declared type is converted before it is judged — numeric
+strings for `integer` / `number`, and `"true"` / `"false"` / `"1"` / `"0"` for `boolean`:
+
+```php
+$schema = IntegerSchema::create(minimum: 1);
+
+assert($schema->validate('42')->valid === false);                          // a JSON body: "42" is a string
+assert($schema->validate('42', Normalization::Scalars)->value() === 42);   // a query parameter: it is an integer
+assert($schema->validate('nope', Normalization::Scalars)->valid === false);
+```
+
 ### Value Objects
 
 A value object can expose its type to other packages – *without* depending on `neos/schematic` – by implementing
 `Neos\JsonSchema\ProvidesSchema` (a `static schema(): Schema`) and validating via `self::schema()->validate($value)`.
-`neos/schematic` bridges any such class into a coercion-capable schema via its `ProvidesSchemaMiddleware`.
 
 ```php
 final class SomeValueObject implements ProvidesSchema

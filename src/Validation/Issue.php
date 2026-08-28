@@ -7,9 +7,8 @@ namespace Neos\JsonSchema\Validation;
 use Stringable;
 
 /**
- * A single, path-located validation failure: a machine-readable {@see IssueCode} (stored as its string value so
- * that pipelines layered on top – e.g. neos/schematic's instantiation phase – can contribute their own codes to
- * one shared Issue type), a human message, and the path to the offending value.
+ * A single, path-located validation failure: a machine-readable {@see IssueCode} (stored as its string value),
+ * a human message, and the path to the offending value.
  */
 final readonly class Issue implements Stringable
 {

@@ -52,12 +52,14 @@ final class ReadmeCodeBlockTest extends TestCase
         $namespacedCode = <<<CODE
             namespace $namespace {
                 use Neos\JsonSchema\BooleanSchema;
+                use Neos\JsonSchema\IntegerSchema;
                 use Neos\JsonSchema\NumberSchema;
                 use Neos\JsonSchema\ObjectSchema;
                 use Neos\JsonSchema\ProvidesSchema;
                 use Neos\JsonSchema\StringSchema;
                 use Neos\JsonSchema\Support\ObjectProperties;
                 use Neos\JsonSchema\Support\StringFormat;
+                use Neos\JsonSchema\Validation\Normalization;
                 $code
             }
             CODE;

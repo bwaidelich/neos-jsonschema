@@ -22,7 +22,8 @@ use Neos\JsonSchema\Schema;
  *    type (`"45"` -> `45`, `"true"` -> `true`). Off by default;
  * 2. *check* – delegated in full to the {@see Assertions} visitor, so constraint logic lives in exactly one place;
  * 3. *project* – reshape the value to the schema's structure: `stdClass` to array, object properties in the order
- *    the schema declares them, keys the schema does not declare dropped.
+ *    the schema declares them, followed by the undeclared keys the schema permits (`additionalProperties: false`
+ *    makes those an issue in step 2, so there are none left to carry).
  *
  * A valid {@see ValidationResult} therefore carries a {@see ValidationResult::value()}: the input as the schema
  * describes it, ready for a consumer that maps it onto its own types. A caller that only asked the yes/no question
@@ -176,7 +177,10 @@ final class Validator
                 $projected[$name] = self::project($propertySchema, $value[$name]);
             }
         }
-        return $projected;
+        if ($schema->additionalProperties === false) {
+            return $projected;
+        }
+        return $projected + $value;
     }
 
     private static function projectArray(ArraySchema $schema, mixed $value): mixed

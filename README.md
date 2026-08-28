@@ -94,8 +94,8 @@ assert($result->issues->codes() === ['invalid_pattern']);
 ```
 
 A valid result also carries the value **as the schema read it**, via `$result->value()`: object properties in the
-order the schema declares them, keys the schema does not declare dropped, `stdClass` input unwrapped to an array.
-That is the value to hand on to whatever maps it onto your own types:
+order the schema declares them, `stdClass` input unwrapped to an array. That is the value to hand on to whatever
+maps it onto your own types:
 
 ```php
 $schema = ObjectSchema::create(
@@ -103,10 +103,21 @@ $schema = ObjectSchema::create(
         title: StringSchema::create(),
         pages: IntegerSchema::create(),
     ),
+    additionalProperties: false,
 );
 
-$result = $schema->validate(['pages' => 42, 'title' => 'Dune', 'undeclared' => true]);
+$result = $schema->validate(['pages' => 42, 'title' => 'Dune']);
 assert($result->value() === ['title' => 'Dune', 'pages' => 42]);
+```
+
+Undeclared keys follow the schema's own `additionalProperties`, so nothing is silently eaten: with `false` they are
+an issue and the result is invalid, and where the schema permits them they are handed back after the declared ones:
+
+```php
+$schema = ObjectSchema::create(properties: ObjectProperties::create(title: StringSchema::create()));
+
+$result = $schema->validate(['undeclared' => true, 'title' => 'Dune']);
+assert($result->value() === ['title' => 'Dune', 'undeclared' => true]);
 ```
 
 ### Input that is always a string

@@ -148,11 +148,68 @@ final class NormalizationTest extends TestCase
 
     public function testProjectsWithoutNormalizing(): void
     {
+        $schema = ObjectSchema::create(
+            properties: ObjectProperties::create(name: StringSchema::create()),
+            additionalProperties: false,
+        );
+        $result = $schema->validate(['name' => 'Ada']);
+
+        self::assertTrue($result->valid);
+        self::assertSame(['name' => 'Ada'], $result->value());
+    }
+
+    /**
+     * A schema that permits extra keys means them: dropping what it explicitly allowed would silently eat data a
+     * caller relies on. They are handed back after the declared ones, which keep the schema's order.
+     */
+    public function testKeepsUndeclaredKeysWhenTheSchemaPermitsThem(): void
+    {
         $schema = ObjectSchema::create(properties: ObjectProperties::create(name: StringSchema::create()));
         $result = $schema->validate(['extra' => true, 'name' => 'Ada']);
 
         self::assertTrue($result->valid);
-        self::assertSame(['name' => 'Ada'], $result->value());
+        self::assertSame(['name' => 'Ada', 'extra' => true], $result->value());
+    }
+
+    public function testKeepsUndeclaredKeysWhenAdditionalPropertiesIsExplicitlyAllowed(): void
+    {
+        $schema = ObjectSchema::create(
+            properties: ObjectProperties::create(name: StringSchema::create()),
+            additionalProperties: true,
+        );
+        $result = $schema->validate(['name' => 'Ada', 'extra' => ['nested' => 1]]);
+
+        self::assertTrue($result->valid);
+        self::assertSame(['name' => 'Ada', 'extra' => ['nested' => 1]], $result->value());
+    }
+
+    public function testKeepsUndeclaredKeysOfANestedObject(): void
+    {
+        $schema = ObjectSchema::create(
+            properties: ObjectProperties::create(
+                contact: ObjectSchema::create(properties: ObjectProperties::create(name: StringSchema::create())),
+            ),
+        );
+        $result = $schema->validate(['contact' => ['name' => 'Ada', 'nickname' => 'Countess']]);
+
+        self::assertTrue($result->valid);
+        self::assertSame(['contact' => ['name' => 'Ada', 'nickname' => 'Countess']], $result->value());
+    }
+
+    /**
+     * `additionalProperties: false` makes an extra key an issue, so projection never has one to drop – but a key
+     * declared by the schema and absent from the input must still not be invented.
+     */
+    public function testProjectionOmitsDeclaredPropertiesTheInputDoesNotCarry(): void
+    {
+        $schema = ObjectSchema::create(
+            properties: ObjectProperties::create(name: StringSchema::create(), age: IntegerSchema::create()),
+            additionalProperties: false,
+        );
+        $result = $schema->validate(['age' => 36]);
+
+        self::assertTrue($result->valid);
+        self::assertSame(['age' => 36], $result->value());
     }
 
     public function testProjectsPropertiesIntoSchemaOrder(): void

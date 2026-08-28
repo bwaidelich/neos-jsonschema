@@ -9,7 +9,7 @@
         "docs": "https://docs.neos.io/"
     },
     "require": {
-        "php": ">=8.3"
+        "php": ">=8.4"
     },
     "require-dev": {
         "roave/security-advisories": "dev-latest",

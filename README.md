@@ -135,6 +135,20 @@ assert($schema->validate('42', Normalization::Scalars)->value() === 42);   // a 
 assert($schema->validate('nope', Normalization::Scalars)->valid === false);
 ```
 
+### Nullable values
+
+JSON Schema has no nullability flag — "this, or null" is a union with the null type. `Nullable::wrap()` builds that
+idiom, and is idempotent, so a schema that already accepts null is handed back untouched:
+
+```php
+$schema = Nullable::wrap(StringSchema::create(minLength: 1));
+
+assert(json_encode($schema) === '{"anyOf":[{"type":"string","minLength":1},{"type":"null"}]}');
+assert($schema->validate(null)->valid === true);
+assert($schema->validate('Dune')->value() === 'Dune');
+assert(Nullable::wrap($schema) === $schema);
+```
+
 ### Value Objects
 
 A value object can expose its type to other packages – *without* depending on `neos/schematic` – by implementing

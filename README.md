@@ -196,6 +196,18 @@ assert($schema->validate('Dune')->value() === 'Dune');
 assert(Nullable::wrap($schema) === $schema);
 ```
 
+`Nullable::unwrap()` is the way back, for a consumer that has to know what a member *is* and does not care that
+it may also be absent:
+
+```php
+$string = StringSchema::create(minLength: 1);
+assert(Nullable::unwrap(Nullable::wrap($string)) === $string);
+assert(Nullable::unwrap($string) === $string);
+
+$choice = Nullable::wrap(AnyOfSchema::create(StringSchema::create(), IntegerSchema::create()));
+assert(Nullable::unwrap($choice) === $choice);
+```
+
 ### Value Objects
 
 A value object can expose its type to other packages – *without* depending on `neos/schematic` – by implementing

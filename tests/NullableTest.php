@@ -8,6 +8,7 @@ use Neos\JsonSchema\AnyOfSchema;
 use Neos\JsonSchema\IntegerSchema;
 use Neos\JsonSchema\Nullable;
 use Neos\JsonSchema\NullSchema;
+use Neos\JsonSchema\ObjectSchema;
 use Neos\JsonSchema\OneOfSchema;
 use Neos\JsonSchema\StringSchema;
 use Neos\JsonSchema\Validation\Normalization;
@@ -79,5 +80,56 @@ final class NullableTest extends TestCase
         );
         self::assertTrue($schema->validate(null)->valid);
         self::assertTrue($schema->validate('Ada')->valid);
+    }
+
+    /**
+     * The way back: `unwrap()` undoes `wrap()`, and hands back the very schema that went in rather than an equal
+     * one — a consumer that has to know what a member *is* can then compare it by identity.
+     */
+    public function testUnwrapUndoesWrap(): void
+    {
+        $schema = StringSchema::create(minLength: 1);
+
+        self::assertSame($schema, Nullable::unwrap(Nullable::wrap($schema)));
+    }
+
+    /**
+     * It answers for any union with exactly one substantive branch, not only for one this class produced: a
+     * member that may also be absent is still that member, however the union was written.
+     */
+    public function testUnwrapAnswersForAOneOfWithASingleSubstantiveBranchToo(): void
+    {
+        $schema = ObjectSchema::create();
+
+        self::assertSame($schema, Nullable::unwrap(OneOfSchema::create($schema, NullSchema::create())));
+    }
+
+    public function testNestedNullablesAreUnwrappedAllTheWayDown(): void
+    {
+        $schema = StringSchema::create();
+
+        self::assertSame($schema, Nullable::unwrap(Nullable::wrap(AnyOfSchema::create($schema))));
+    }
+
+    /**
+     * What it must NOT do: a union of several substantive branches is a genuine choice, and narrowing it means
+     * validating a value against the branches — which this cannot do, having no value.
+     */
+    public function testAMultiBranchUnionIsHandedBackUntouched(): void
+    {
+        $multi = Nullable::wrap(AnyOfSchema::create(StringSchema::create(), IntegerSchema::create()));
+
+        self::assertSame($multi, Nullable::unwrap($multi));
+    }
+
+    /**
+     * And anything that is not a union at all is simply itself, so a caller never has to ask first — the same
+     * property that makes `wrap()` idempotent. (`null` in, `null` out is guaranteed by the signature.)
+     */
+    public function testAnythingThatIsNotAUnionIsItself(): void
+    {
+        $schema = StringSchema::create();
+
+        self::assertSame($schema, Nullable::unwrap($schema));
     }
 }

@@ -116,7 +116,7 @@ final class ProjectionTest extends TestCase
      */
     public function testOnlyInboundUnwrapsStdClass(): void
     {
-        $value = (object)['a' => 1];
+        $value = (object) ['a' => 1];
 
         self::assertSame(['a' => 1], Projection::inbound($this->freeFormMap(), $value));
         self::assertSame($value, Projection::outbound($this->freeFormMap(), $value));

@@ -78,6 +78,27 @@ JSON;
 assert(json_encode($schema, JSON_PRETTY_PRINT) === $expected);
 ```
 
+### Unconstrained members
+
+`AnySchema` is JSON Schema's empty schema, `{}`: it accepts anything.
+
+```php
+$envelope = ObjectSchema::create(
+    properties: ObjectProperties::create(
+        id: StringSchema::create(),
+        payload: AnySchema::create(description: 'Whatever the data source returned'),
+    ),
+    required: ['id', 'payload'],
+);
+
+assert(str_contains((string)json_encode($envelope), '"payload":{"description":"Whatever the data source returned"}'));
+// with nothing to say about it either, it is the bare empty schema
+assert(json_encode(AnySchema::create()) === '{}');
+
+// nothing is ever invalid under it, and nothing is reshaped on the way through
+assert(AnySchema::create()->validate(['anything' => [1, 2]])->valid === true);
+```
+
 ## Validating a value
 
 Every schema can validate a value against itself via `$schema->validate($value)`, which returns a `ValidationResult`

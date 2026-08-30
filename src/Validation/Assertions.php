@@ -6,6 +6,7 @@ namespace Neos\JsonSchema\Validation;
 
 use Neos\JsonSchema\AllOfSchema;
 use Neos\JsonSchema\AnyOfSchema;
+use Neos\JsonSchema\AnySchema;
 use Neos\JsonSchema\ArraySchema;
 use Neos\JsonSchema\BooleanSchema;
 use Neos\JsonSchema\IntegerSchema;
@@ -44,6 +45,8 @@ final class Assertions
     public static function check(Schema $schema, mixed $value, array $path = []): array
     {
         return match ($schema::class) {
+            // the empty schema constrains nothing, so there is nothing it can fail
+            AnySchema::class => [],
             StringSchema::class => self::validateString($schema, $value, $path),
             IntegerSchema::class => self::validateInteger($schema, $value, $path),
             NumberSchema::class => self::validateNumber($schema, $value, $path),

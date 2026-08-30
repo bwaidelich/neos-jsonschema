@@ -9,14 +9,17 @@ use Neos\JsonSchema\Validation\Normalization;
 use Neos\JsonSchema\Validation\ValidationResult;
 
 /**
- * @phpstan-sealed AllOfSchema|AnyOfSchema|ArraySchema|BooleanSchema|IntegerSchema|NotSchema|NullSchema|NumberSchema|ObjectSchema|OneOfSchema|ReferenceSchema|StringSchema
+ * @phpstan-sealed AllOfSchema|AnyOfSchema|AnySchema|ArraySchema|BooleanSchema|IntegerSchema|NotSchema|NullSchema|NumberSchema|ObjectSchema|OneOfSchema|ReferenceSchema|StringSchema
  */
 interface Schema extends JsonSerializable
 {
     /**
-     * @return array<string, mixed>
+     * A `stdClass` only for {@see AnySchema} with no annotations set: the empty schema `{}`, which an empty PHP
+     * array cannot encode as.
+     *
+     * @return array<string, mixed>|\stdClass
      */
-    public function jsonSerialize(): array;
+    public function jsonSerialize(): array|\stdClass;
 
     /**
      * Validate a value against this schema, and read it: the {@see ValidationResult} of a valid value carries the

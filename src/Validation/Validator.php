@@ -21,9 +21,9 @@ use Neos\JsonSchema\Schema;
  * 1. *normalize* – depending on {@see Normalization}, convert scalars that are merely spelled like the declared
  *    type (`"45"` -> `45`, `"true"` -> `true`). Off by default;
  * 2. *check* – delegated in full to the {@see Assertions} visitor, so constraint logic lives in exactly one place;
- * 3. *project* – reshape the value to the schema's structure: `stdClass` to array, object properties in the order
- *    the schema declares them, followed by the undeclared keys the schema permits (`additionalProperties: false`
- *    makes those an issue in step 2, so there are none left to carry).
+ * 3. *project* – reshape the value to the schema's structure, which is {@see Projection} (inbound): `stdClass` to
+ *    array, object properties in the order the schema declares them, followed by the undeclared keys the schema
+ *    permits (`additionalProperties: false` makes those an issue in step 2, so there are none left to carry).
  *
  * A valid {@see ValidationResult} therefore carries a {@see ValidationResult::value()}: the input as the schema
  * describes it, ready for a consumer that maps it onto its own types. A caller that only asked the yes/no question
@@ -35,6 +35,9 @@ use Neos\JsonSchema\Schema;
  * {@see \Neos\JsonSchema\ReferenceSchema} – are left untouched by steps 1 and 3: there is no honest way to pick
  * *which* branch's shape the result should take, and silently guessing would lose data. They are still checked
  * (and `$ref` still raises {@see UnsupportedKeywordException} there).
+ *
+ * Step 3 is the only step a *producer* also needs, which is why it lives in {@see Projection} rather than here:
+ * writing a value out faces the same ambiguity reading one in does, from the other side.
  *
  * @internal to be invoked via {@see Schema::validate()}
  */
@@ -48,7 +51,7 @@ final class Validator
         if ($issues !== []) {
             return ValidationResult::invalid(...$issues);
         }
-        return ValidationResult::valid(self::project($schema, $normalized));
+        return ValidationResult::valid(Projection::inbound($schema, $normalized));
     }
 
     /**
@@ -112,8 +115,8 @@ final class Validator
         }
         $normalized = [];
         foreach ($input as $index => $item) {
-            $itemSchema = self::itemSchema($schema, $index);
-            $normalized[] = $itemSchema === null ? $item : self::normalize($itemSchema, $item);
+            $itemSchema = $schema->itemSchema($index);
+            $normalized[] = $itemSchema instanceof Schema ? self::normalize($itemSchema, $item) : $item;
         }
         return $normalized;
     }
@@ -143,79 +146,5 @@ final class Validator
             return self::normalize($substantiveBranches[0], $input);
         }
         return $input;
-    }
-
-    /**
-     * The projected value: the normalized primitives reshaped onto the schema's known structure, ready for a
-     * consumer that maps them onto its own types. Only reached once the assertions have passed.
-     */
-    private static function project(Schema $schema, mixed $value): mixed
-    {
-        if ($schema instanceof ObjectSchema) {
-            return self::projectObject($schema, $value);
-        }
-        if ($schema instanceof ArraySchema) {
-            return self::projectArray($schema, $value);
-        }
-        if ($schema instanceof AnyOfSchema || $schema instanceof OneOfSchema) {
-            return self::projectBranches($schema, $value);
-        }
-        return $value;
-    }
-
-    private static function projectObject(ObjectSchema $schema, mixed $value): mixed
-    {
-        if (is_object($value)) {
-            $value = get_object_vars($value);
-        }
-        if (!is_array($value) || $schema->properties === null) {
-            return $value;
-        }
-        $projected = [];
-        foreach ($schema->properties as $name => $propertySchema) {
-            if (array_key_exists($name, $value)) {
-                $projected[$name] = self::project($propertySchema, $value[$name]);
-            }
-        }
-        if ($schema->additionalProperties === false) {
-            return $projected;
-        }
-        return $projected + $value;
-    }
-
-    private static function projectArray(ArraySchema $schema, mixed $value): mixed
-    {
-        if (!is_array($value) || ($value !== [] && !array_is_list($value))) {
-            return $value;
-        }
-        $projected = [];
-        foreach ($value as $index => $item) {
-            $itemSchema = self::itemSchema($schema, $index);
-            $projected[] = $itemSchema === null ? $item : self::project($itemSchema, $item);
-        }
-        return $projected;
-    }
-
-    private static function projectBranches(AnyOfSchema|OneOfSchema $schema, mixed $value): mixed
-    {
-        foreach ($schema as $branch) {
-            if (Assertions::check($branch, $value) === []) {
-                return self::project($branch, $value);
-            }
-        }
-        return $value;
-    }
-
-    /**
-     * The schema an item at the given index is described by: `prefixItems` positionally, `items` for the rest.
-     * `null` when the schema constrains the item in no way (or forbids it – which {@see Assertions} reports).
-     */
-    private static function itemSchema(ArraySchema $schema, int $index): Schema|null
-    {
-        $prefix = $schema->prefixItems !== null ? iterator_to_array($schema->prefixItems, false) : [];
-        if ($index < count($prefix)) {
-            return $prefix[$index];
-        }
-        return $schema->items instanceof Schema ? $schema->items : null;
     }
 }

@@ -6,7 +6,9 @@ namespace Neos\JsonSchema\Tests;
 
 use InvalidArgumentException;
 use Neos\JsonSchema\ArraySchema;
+use Neos\JsonSchema\IntegerSchema;
 use Neos\JsonSchema\Schema;
+use Neos\JsonSchema\StringSchema;
 use Neos\JsonSchema\Support\ArrayItems;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -111,4 +113,25 @@ final class ArraySchemaTest extends TestCase
         self::assertJsonStringEqualsJsonString('{"type":"array","title":"some changed title","description":"some changed description","default":["some","changed","default"],"examples":{"foo":["changed","bar"],"bar":["foos","bars"]},"readOnly":false,"writeOnly":true,"deprecated":false,"const":["foo","changed"],"items":{"type":"mock2"},"prefixItems":[{"type":"mock2"},{"type":"mock1"}],"unevaluatedItems":[{"type":"mock1"}],"contains":{"type":"mock2"},"minContains":2,"maxContains":3,"minItems":4,"maxItems":5,"uniqueItems":false,"$comment":"some changed comment"}', json_encode($schema, JSON_THROW_ON_ERROR));
     }
 
+    public function test_itemSchema_reads_prefixItems_positionally_then_items(): void
+    {
+        $first = StringSchema::create();
+        $rest = IntegerSchema::create();
+        $schema = ArraySchema::create(items: $rest, prefixItems: ArrayItems::create($first));
+
+        self::assertSame($first, $schema->itemSchema(0));
+        self::assertSame($rest, $schema->itemSchema(1));
+    }
+
+    /**
+     * The two non-schema answers are the point of the return type: `items: false` forbids an item past the
+     * prefix, while a schema saying nothing about its items constrains none of them.
+     */
+    public function test_itemSchema_distinguishes_a_forbidden_item_from_an_unconstrained_one(): void
+    {
+        $forbidding = ArraySchema::create(items: false, prefixItems: ArrayItems::create(StringSchema::create()));
+        self::assertFalse($forbidding->itemSchema(1));
+
+        self::assertNull(ArraySchema::create()->itemSchema(0));
+    }
 }

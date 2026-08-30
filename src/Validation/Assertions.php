@@ -226,6 +226,8 @@ final class Assertions
         }
         /** @var list<mixed> $value */
         $issues = [];
+        // Reads `prefixItems` and `items` directly rather than through ArraySchema::itemSchema(): this loop also
+        // needs the prefix *length*, which is the limit an extra element exceeds.
         $prefix = $schema->prefixItems !== null ? iterator_to_array($schema->prefixItems, false) : [];
         foreach ($value as $index => $item) {
             if ($index < count($prefix)) {

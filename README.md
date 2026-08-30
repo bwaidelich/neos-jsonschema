@@ -120,6 +120,32 @@ $result = $schema->validate(['undeclared' => true, 'title' => 'Dune']);
 assert($result->value() === ['title' => 'Dune', 'undeclared' => true]);
 ```
 
+### Writing a value back out
+
+Reading a value in is the *inbound* half of one walk; a producer needs the other half. PHP has one `array` type
+where JSON has two structures, so an empty PHP array cannot say whether it was `{}` or `[]` — and nothing in the
+value can. The schema can, which is why `Projection::outbound()` exists and takes one:
+
+```php
+use Neos\JsonSchema\Validation\Projection;
+
+$schema = ObjectSchema::create(
+    properties: ObjectProperties::create(
+        entries: ObjectSchema::create(additionalProperties: true),
+        names: ArraySchema::create(items: StringSchema::create()),
+    ),
+);
+
+assert(json_encode(Projection::outbound($schema, ['entries' => [], 'names' => []])) === '{"entries":{},"names":[]}');
+```
+
+The two directions are the same walk and differ in three places, all of them about facing the other way: outbound
+turns `[]` under an object schema into `{}` (inbound leaves it, having nothing better to hand a PHP consumer),
+outbound leaves a `stdClass` for `json_encode` (inbound unwraps it to an array), and outbound keeps keys the
+schema does not name even under `additionalProperties: false` — dropping those inbound discards what a client
+sent that was never promised a reading, while dropping them outbound would silently discard what the producer's
+own code chose to emit.
+
 ### Input that is always a string
 
 Validation is *standard* JSON Schema by default: `"42"` is a string, not an integer. But a path, query or header

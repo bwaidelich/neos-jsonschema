@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Neos\JsonSchema\Validation;
 
 /**
- * The outcome of validating a value against a schema: *either* valid – carrying the {@see self::value()} the schema
- * read – *or* the aggregated {@see Issues}. Returned instead of throwing, since invalid input is expected, not
- * exceptional.
+ * The outcome of validating a value against a schema: valid, or the aggregated {@see Issues} saying why not.
+ * Returned instead of throwing, since invalid input is expected, not exceptional.
  *
- * A caller that only asked the yes/no question reads {@see self::$valid} and ignores the value.
+ * It carries no value: validation answers a question about the value the caller already holds, and hands back
+ * nothing it would have to explain the difference to.
  *
  * (An {@see UnsupportedKeywordException} – a schema the {@see Validator} cannot enforce – *is* thrown, because it
  * is a programming/representation error, not invalid input.)
@@ -18,13 +18,12 @@ final readonly class ValidationResult
 {
     private function __construct(
         public bool $valid,
-        private mixed $value,
         public Issues $issues,
     ) {}
 
-    public static function valid(mixed $value = null): self
+    public static function valid(): self
     {
-        return new self(true, $value, new Issues());
+        return new self(true, new Issues());
     }
 
     public static function invalid(Issues|Issue ...$issues): self
@@ -40,20 +39,6 @@ final readonly class ValidationResult
         if ($flat === []) {
             throw new \InvalidArgumentException('An invalid ValidationResult requires at least one issue', 1751884802);
         }
-        return new self(false, null, new Issues(...$flat));
-    }
-
-    /**
-     * What the schema read: the input normalized to the schema's primitive types (see {@see Normalization}) and
-     * projected onto its structure – so *not* identical to the input the caller passed in.
-     *
-     * @throws \RuntimeException if this result is invalid
-     */
-    public function value(): mixed
-    {
-        if (!$this->valid) {
-            throw new \RuntimeException('Cannot retrieve the value of an invalid ValidationResult', 1751884801);
-        }
-        return $this->value;
+        return new self(false, new Issues(...$flat));
     }
 }

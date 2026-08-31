@@ -9,8 +9,8 @@ namespace Neos\JsonSchema;
  *
  * JSON Schema has no nullability flag – a nullable value is a union with the null type, which is why this is a
  * helper producing a {@see Schema} rather than a keyword on one. {@see Validation\Validator} recognises the idiom
- * and normalizes a value through the substantive branch, so a wrapped schema keeps reporting *why* a value is not
- * that branch instead of only "matched no branch".
+ * when it reports issues, so a wrapped schema keeps saying *why* a value is not the substantive branch instead of
+ * only "matched no branch".
  *
  * {@see self::wrap()} is idempotent: a schema that already accepts null is handed back untouched, so a caller
  * never has to ask first. {@see self::unwrap()} is the way back: the substantive branch of that union, for a
@@ -46,7 +46,7 @@ final class Nullable
      * to have one non-null branch: a nullable member still *is* that member.
      *
      * A genuine multi-branch union is handed back as it is. Narrowing one means validating a value against its
-     * branches, which is {@see Validation\Assertions}' job and needs a value; this is about the schema alone.
+     * branches, which is {@see Validation\Validator}'s job and needs a value; this is about the schema alone.
      *
      * @return ($schema is null ? null : Schema)
      */

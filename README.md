@@ -114,9 +114,11 @@ assert($result->valid === false);
 assert($result->issues->codes() === ['invalid_pattern']);
 ```
 
-A valid result also carries the value **as the schema read it**, via `$result->value()`: object properties in the
-order the schema declares them, `stdClass` input unwrapped to an array. That is the value to hand on to whatever
-maps it onto your own types:
+The result carries the verdict and nothing else. Validation asks a question about the value you already hold; it
+neither converts it nor hands a second copy of it back, so there is no "what the schema read" to keep straight.
+
+**Input is JSON decoded to associative arrays** — `json_decode($json, true)`. A JSON object is a PHP array with
+string keys, and a `stdClass` is reported as the wrong type rather than quietly unwrapped:
 
 ```php
 $schema = ObjectSchema::create(
@@ -127,59 +129,17 @@ $schema = ObjectSchema::create(
     additionalProperties: false,
 );
 
-$result = $schema->validate(['pages' => 42, 'title' => 'Dune']);
-assert($result->value() === ['title' => 'Dune', 'pages' => 42]);
+assert($schema->validate(['pages' => 42, 'title' => 'Dune'])->valid === true);
+assert($schema->validate((object) ['title' => 'Dune', 'pages' => 42])->issues->codes() === ['invalid_type']);
 ```
 
 Undeclared keys follow the schema's own `additionalProperties`, so nothing is silently eaten: with `false` they are
-an issue and the result is invalid, and where the schema permits them they are handed back after the declared ones:
+an issue, and where the schema permits them they are simply accepted:
 
 ```php
 $schema = ObjectSchema::create(properties: ObjectProperties::create(title: StringSchema::create()));
 
-$result = $schema->validate(['undeclared' => true, 'title' => 'Dune']);
-assert($result->value() === ['title' => 'Dune', 'undeclared' => true]);
-```
-
-### Writing a value back out
-
-Reading a value in is the *inbound* half of one walk; a producer needs the other half. PHP has one `array` type
-where JSON has two structures, so an empty PHP array cannot say whether it was `{}` or `[]` — and nothing in the
-value can. The schema can, which is why `Projection::outbound()` exists and takes one:
-
-```php
-use Neos\JsonSchema\Validation\Projection;
-
-$schema = ObjectSchema::create(
-    properties: ObjectProperties::create(
-        entries: ObjectSchema::create(additionalProperties: true),
-        names: ArraySchema::create(items: StringSchema::create()),
-    ),
-);
-
-assert(json_encode(Projection::outbound($schema, ['entries' => [], 'names' => []])) === '{"entries":{},"names":[]}');
-```
-
-The two directions are the same walk and differ in three places, all of them about facing the other way: outbound
-turns `[]` under an object schema into `{}` (inbound leaves it, having nothing better to hand a PHP consumer),
-outbound leaves a `stdClass` for `json_encode` (inbound unwraps it to an array), and outbound keeps keys the
-schema does not name even under `additionalProperties: false` — dropping those inbound discards what a client
-sent that was never promised a reading, while dropping them outbound would silently discard what the producer's
-own code chose to emit.
-
-### Input that is always a string
-
-Validation is *standard* JSON Schema by default: `"42"` is a string, not an integer. But a path, query or header
-parameter is only ever a string, so judging one that way rejects everything. Pass `Normalization::Scalars` for those
-call sites, and a scalar that is merely *spelled* like the declared type is converted before it is judged — numeric
-strings for `integer` / `number`, and `"true"` / `"false"` / `"1"` / `"0"` for `boolean`:
-
-```php
-$schema = IntegerSchema::create(minimum: 1);
-
-assert($schema->validate('42')->valid === false);                          // a JSON body: "42" is a string
-assert($schema->validate('42', Normalization::Scalars)->value() === 42);   // a query parameter: it is an integer
-assert($schema->validate('nope', Normalization::Scalars)->valid === false);
+assert($schema->validate(['undeclared' => true, 'title' => 'Dune'])->valid === true);
 ```
 
 ### Nullable values
@@ -192,7 +152,7 @@ $schema = Nullable::wrap(StringSchema::create(minLength: 1));
 
 assert(json_encode($schema) === '{"anyOf":[{"type":"string","minLength":1},{"type":"null"}]}');
 assert($schema->validate(null)->valid === true);
-assert($schema->validate('Dune')->value() === 'Dune');
+assert($schema->validate('Dune')->valid === true);
 assert(Nullable::wrap($schema) === $schema);
 ```
 

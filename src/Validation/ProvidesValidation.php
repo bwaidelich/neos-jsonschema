@@ -17,8 +17,8 @@ use Neos\JsonSchema\Schema;
 trait ProvidesValidation
 {
     #[\NoDiscard('inspect the ValidationResult; discarding it means the validation was pointless')]
-    public function validate(mixed $value, Normalization $normalization = Normalization::None): ValidationResult
+    public function validate(mixed $value): ValidationResult
     {
-        return Validator::validate($this, $value, $normalization);
+        return Validator::validate($this, $value);
     }
 }

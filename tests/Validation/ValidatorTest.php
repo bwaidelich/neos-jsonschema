@@ -18,16 +18,16 @@ use Neos\JsonSchema\Support\ArrayItems;
 use Neos\JsonSchema\Support\Discriminator;
 use Neos\JsonSchema\Support\ObjectProperties;
 use Neos\JsonSchema\Support\StringFormat;
-use Neos\JsonSchema\Validation\Assertions;
 use Neos\JsonSchema\Validation\IssueCode;
+use Neos\JsonSchema\Validation\Issues;
 use Neos\JsonSchema\Validation\UnsupportedKeywordException;
 use Neos\JsonSchema\Validation\ValidationResult;
 use Neos\JsonSchema\Validation\Validator;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-#[CoversClass(Assertions::class)]
 #[CoversClass(Validator::class)]
+#[CoversClass(ValidationResult::class)]
 final class ValidatorTest extends TestCase
 {
     /**
@@ -67,9 +67,10 @@ final class ValidatorTest extends TestCase
         $unreached = StringSchema::create(pattern: '^(unclosed$')->validate('anything');
     }
 
-    public function testStringIsNotNormalizedByDefault(): void
+    public function testAScalarIsJudgedExactlyAsGiven(): void
     {
-        // without Normalization::Scalars, a numeric string is NOT accepted as an integer
+        // a value merely *spelled* like an integer is a string; reading a query parameter leniently is the
+        // business of whatever knows it came over a wire as one — see Neos\OpenApi\Binding\ScalarNormalizer
         $result = IntegerSchema::create()->validate('30');
         self::assertFalse($result->valid);
         self::assertSame([IssueCode::InvalidType->value], $this->codes($result));
@@ -277,5 +278,49 @@ final class ValidatorTest extends TestCase
         $schema = ArraySchema::create(items: StringSchema::create(), unevaluatedItems: false);
         $this->expectException(UnsupportedKeywordException::class);
         $result = $schema->validate(['a']);
+    }
+
+    /**
+     * One input shape, so that a payload this accepts is one `neos/schematic` can build from: a JSON object is an
+     * associative array, and a `stdClass` is the wrong type rather than something to quietly unwrap.
+     */
+    public function testAStdClassIsNotAnObject(): void
+    {
+        $schema = ObjectSchema::create(
+            properties: ObjectProperties::create(name: StringSchema::create()),
+            required: ['name'],
+        );
+
+        self::assertTrue($schema->validate(['name' => 'Ada'])->valid);
+        self::assertSame([IssueCode::InvalidType->value], $this->codes($schema->validate((object) ['name' => 'Ada'])));
+    }
+
+    public function testAggregatesEveryViolationWithItsPath(): void
+    {
+        $schema = ObjectSchema::create(
+            properties: ObjectProperties::create(
+                name: StringSchema::create(minLength: 1),
+                age: IntegerSchema::create(maximum: 150),
+            ),
+            required: ['name', 'age'],
+        );
+        $result = $schema->validate(['name' => '', 'age' => 200]);
+
+        self::assertFalse($result->valid);
+        self::assertCount(2, $result->issues);
+        self::assertSame(['age'], $result->issues->toArray()[1]->path);
+    }
+
+    public function testAnInvalidResultRequiresAtLeastOneIssue(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        ValidationResult::invalid(new Issues());
+    }
+
+    public function testTheSchemaSugarDelegatesToTheValidator(): void
+    {
+        $schema = IntegerSchema::create(minimum: 1);
+
+        self::assertEquals(Validator::validate($schema, 0), $schema->validate(0));
     }
 }

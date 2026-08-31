@@ -11,7 +11,6 @@ use Neos\JsonSchema\NullSchema;
 use Neos\JsonSchema\ObjectSchema;
 use Neos\JsonSchema\OneOfSchema;
 use Neos\JsonSchema\StringSchema;
-use Neos\JsonSchema\Validation\Normalization;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
@@ -33,8 +32,7 @@ final class NullableTest extends TestCase
         $schema = Nullable::wrap(IntegerSchema::create(minimum: 1));
 
         self::assertTrue($schema->validate(null)->valid);
-        self::assertNull($schema->validate(null)->value());
-        self::assertSame(45, $schema->validate('45', Normalization::Scalars)->value());
+        self::assertTrue($schema->validate(45)->valid);
         self::assertFalse($schema->validate(0)->valid);
         self::assertFalse($schema->validate('nope')->valid);
     }

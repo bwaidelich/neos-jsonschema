@@ -63,7 +63,6 @@ final class ReadmeCodeBlockTest extends TestCase
                 use Neos\JsonSchema\StringSchema;
                 use Neos\JsonSchema\Support\ObjectProperties;
                 use Neos\JsonSchema\Support\StringFormat;
-                use Neos\JsonSchema\Validation\Normalization;
                 $code
             }
             CODE;

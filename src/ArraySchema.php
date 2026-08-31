@@ -147,11 +147,7 @@ final readonly class ArraySchema implements Schema
      * The schema an item at the given index is described by: `prefixItems` positionally, `items` for the rest.
      *
      * Three answers, because the keywords have three: a {@see Schema} describing the item, `false` where `items:
-     * false` forbids an item beyond the prefix at all, and `null` where nothing constrains it. Reading those two
-     * keywords is a fact about this schema rather than about any one thing done with it, which is why normalization
-     * and projection both ask here instead of each spelling the rule out again. ({@see
-     * \Neos\JsonSchema\Validation\Assertions} still reads them itself: it needs the prefix *length* as well, as
-     * the limit its "too many items" issue names.)
+     * false` forbids an item beyond the prefix at all, and `null` where nothing constrains it.
      */
     public function itemSchema(int $index): Schema|false|null
     {

@@ -47,16 +47,13 @@ final class AnySchemaTest extends TestCase
     }
 
     /**
-     * The whole point: nothing is ever invalid, and nothing is reshaped on the way through — an empty array
-     * stays a list, because this schema does not claim to know that it was meant to be an object.
+     * The whole point: nothing is ever invalid — the empty schema constrains nothing, so there is nothing a value
+     * can fail.
      */
     #[DataProvider('anyValueProvider')]
-    public function testEveryValueIsValidAndComesBackUnchanged(mixed $value): void
+    public function testEveryValueIsValid(mixed $value): void
     {
-        $result = AnySchema::create()->validate($value);
-
-        self::assertTrue($result->valid);
-        self::assertSame($value, $result->value());
+        self::assertTrue(AnySchema::create()->validate($value)->valid);
     }
 
     /**

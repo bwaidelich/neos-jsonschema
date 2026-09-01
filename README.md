@@ -102,6 +102,39 @@ assert($result->valid === false);
 assert($result->issues->codes() === ['invalid_pattern']);
 ```
 
+A result is returned rather than thrown because invalid input is expected, not exceptional, and a caller handling a
+request wants every issue at once. A caller *enforcing* an invariant is in the other position — a value object's
+named constructor has nothing to report to and nothing to hand back — and asks for the exception instead:
+
+```php
+final readonly class Handle
+{
+    private function __construct(public string $value) {}
+
+    public static function fromString(string $value): self
+    {
+        self::schema()->validate($value)->throwIfInvalid();
+        return new self($value);
+    }
+
+    public static function schema(): StringSchema
+    {
+        static $schema = null;
+        return $schema ??= StringSchema::create(minLength: 1, pattern: '^[a-z]+$');
+    }
+}
+
+assert(Handle::fromString('ada')->value === 'ada');
+
+$caught = null;
+try {
+    Handle::fromString('Ada');
+} catch (\Neos\JsonSchema\Validation\ValidationFailedException $exception) {
+    $caught = $exception->issues->codes();
+}
+assert($caught === ['invalid_pattern']);
+```
+
 **Input must be JSON decoded to associative arrays** via `json_decode($json, true)`.
 
 > [!WARNING]

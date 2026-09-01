@@ -26,6 +26,18 @@ final readonly class ValidationResult
         return new self(true, new Issues());
     }
 
+    /**
+     * Throws an exception in case the validation failed
+     *
+     * @throws ValidationFailedException if the value did not validate
+     */
+    public function throwIfInvalid(): void
+    {
+        if (!$this->valid) {
+            throw ValidationFailedException::forIssues($this->issues);
+        }
+    }
+
     public static function invalid(Issues|Issue ...$issues): self
     {
         $flat = [];

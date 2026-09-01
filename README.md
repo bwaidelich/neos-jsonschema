@@ -3,9 +3,18 @@
 > [!WARNING]
 > At this stage, this package is **experimental** and subject to change!
 
-PHP Classes to represent *and validate against* JSON Schemas, see [JSON Schema](https://json-schema.org/).
+PHP Classes to represent and validate against [JSON Schemas](https://json-schema.org/).
 
-The schema value objects live in the `Neos\JsonSchema` namespace, with their supporting value types in `Neos\JsonSchema\Support`; validation lives in `Neos\JsonSchema\Validation`.
+<!-- TOC -->
+* [JSON Schema](#json-schema)
+  * [Usage](#usage)
+  * [Validating a value](#validating-a-value)
+    * [Nullable values](#nullable-values)
+    * [Unconstrained members](#unconstrained-members)
+    * [Objects](#objects)
+  * [Turning `Issues` into an RFC 9457 Problem Details response](#turning-issues-into-an-rfc-9457-problem-details-response)
+  * [License](#license)
+<!-- TOC -->
 
 ## Usage
 
@@ -78,27 +87,6 @@ JSON;
 assert(json_encode($schema, JSON_PRETTY_PRINT) === $expected);
 ```
 
-### Unconstrained members
-
-`AnySchema` is JSON Schema's empty schema, `{}`: it accepts anything.
-
-```php
-$envelope = ObjectSchema::create(
-    properties: ObjectProperties::create(
-        id: StringSchema::create(),
-        payload: AnySchema::create(description: 'Whatever the data source returned'),
-    ),
-    required: ['id', 'payload'],
-);
-
-assert(str_contains((string)json_encode($envelope), '"payload":{"description":"Whatever the data source returned"}'));
-// with nothing to say about it either, it is the bare empty schema
-assert(json_encode(AnySchema::create()) === '{}');
-
-// nothing is ever invalid under it, and nothing is reshaped on the way through
-assert(AnySchema::create()->validate(['anything' => [1, 2]])->valid === true);
-```
-
 ## Validating a value
 
 Every schema can validate a value against itself via `$schema->validate($value)`, which returns a `ValidationResult`
@@ -114,11 +102,10 @@ assert($result->valid === false);
 assert($result->issues->codes() === ['invalid_pattern']);
 ```
 
-The result carries the verdict and nothing else. Validation asks a question about the value you already hold; it
-neither converts it nor hands a second copy of it back, so there is no "what the schema read" to keep straight.
+**Input must be JSON decoded to associative arrays** via `json_decode($json, true)`.
 
-**Input is JSON decoded to associative arrays** — `json_decode($json, true)`. A JSON object is a PHP array with
-string keys, and a `stdClass` is reported as the wrong type rather than quietly unwrapped:
+> [!WARNING]
+> `\stdClass` can **not** be validated, as the following example shows:
 
 ```php
 $schema = ObjectSchema::create(
@@ -133,19 +120,23 @@ assert($schema->validate(['pages' => 42, 'title' => 'Dune'])->valid === true);
 assert($schema->validate((object) ['title' => 'Dune', 'pages' => 42])->issues->codes() === ['invalid_type']);
 ```
 
-Undeclared keys follow the schema's own `additionalProperties`, so nothing is silently eaten: with `false` they are
-an issue, and where the schema permits them they are simply accepted:
+If you want to model a *closed* object without allowing undeclared properties, set `additionalProperties: false`:
 
 ```php
-$schema = ObjectSchema::create(properties: ObjectProperties::create(title: StringSchema::create()));
+$open = ObjectSchema::create(properties: ObjectProperties::create(title: StringSchema::create()));
+assert($open->validate(['title' => 'Dune', 'isbn' => '978-0441013593'])->valid === true);
 
-assert($schema->validate(['undeclared' => true, 'title' => 'Dune'])->valid === true);
+$closed = $open->with(additionalProperties: false);
+$result = $closed->validate(['title' => 'Dune', 'isbn' => '978-0441013593']);
+
+assert($result->valid === false);
+assert($result->issues->codes() === ['unrecognized_keys']);
+assert((string) $result->issues === '<root>: Unrecognized property: isbn (unrecognized_keys)');
 ```
 
 ### Nullable values
 
-JSON Schema has no nullability flag — "this, or null" is a union with the null type. `Nullable::wrap()` builds that
-idiom, and is idempotent, so a schema that already accepts null is handed back untouched:
+JSON Schema has no nullability flag: "this, or null" is a union with the null type. `Nullable::wrap()` builds it idempotently, so a schema that already accepts null is handed back untouched:
 
 ```php
 $schema = Nullable::wrap(StringSchema::create(minLength: 1));
@@ -168,9 +159,31 @@ $choice = Nullable::wrap(AnyOfSchema::create(StringSchema::create(), IntegerSche
 assert(Nullable::unwrap($choice) === $choice);
 ```
 
-### Value Objects
 
-A value object can expose its type to other packages – *without* depending on `neos/schematic` – by implementing
+### Unconstrained members
+
+`AnySchema` is JSON Schema's empty schema, `{}`: it accepts anything.
+
+```php
+$envelope = ObjectSchema::create(
+    properties: ObjectProperties::create(
+        id: StringSchema::create(),
+        payload: AnySchema::create(description: 'Whatever the data source returned'),
+    ),
+    required: ['id', 'payload'],
+);
+
+assert(str_contains((string)json_encode($envelope), '"payload":{"description":"Whatever the data source returned"}'));
+// with nothing to say about it either, it is the bare empty schema
+assert(json_encode(AnySchema::create()) === '{}');
+
+// nothing is ever invalid under it, and nothing is reshaped on the way through
+assert(AnySchema::create()->validate(['anything' => [1, 2]])->valid === true);
+```
+
+## Objects
+
+An object can expose its type to other packages by implementing
 `Neos\JsonSchema\ProvidesSchema` (a `static schema(): Schema`) and validating via `self::schema()->validate($value)`.
 
 ```php
@@ -180,25 +193,22 @@ final class SomeValueObject implements ProvidesSchema
     private function __construct(
         public readonly string $value
     ) {
-        $validationResult = self::schema()->validate($value);
-        if (!$validationResult->valid) {
-            throw new \InvalidArgumentException(sprintf('Invalid value "%s": %s', $value, $validationResult->issues));
-        }
     }
 
     public static function fromString(string $value): self
     {
+        $validationResult = self::schema()->validate($value);
+        if (!$validationResult->valid) {
+            throw new \InvalidArgumentException(sprintf('Invalid value "%s": %s', $value, $validationResult->issues));
+        }
         return new self($value);
     }
 
     public static function schema(): StringSchema
     {
         // note: memoized in a static variable, because readonly classes and enums cannot declare static properties
-        static $schemaRuntimeCache = null;
-        if ($schemaRuntimeCache === null) {
-            $schemaRuntimeCache = StringSchema::create(minLength: 1, maxLength: 40, pattern: '^[a-z0-9\-]+$');
-        }
-        return $schemaRuntimeCache;
+        static $schema = null;
+        return $schema ??= StringSchema::create(minLength: 1, maxLength: 40, pattern: '^[a-z0-9\-]+$');
     }
 }
 
@@ -215,8 +225,8 @@ assert($exceptionMessage === 'Invalid value "not valid": <root>: Value does not 
 
 ## Turning `Issues` into an RFC 9457 Problem Details response
 
-Each `Issue`'s `path`, `code` and `message` map directly onto the `errors` member of an
-[RFC 9457](https://datatracker.ietf.org/doc/html/rfc9457) "Problem Details" response – no extra mapping layer needed.
+Each Issue's `path`, `code` and `message` map directly onto the `errors` member of an
+[RFC 9457](https://datatracker.ietf.org/doc/html/rfc9457) "Problem Details" response.
 `Issue::pathAsJsonPointer()` renders the path as a [RFC 6901](https://datatracker.ietf.org/doc/html/rfc6901) JSON
 Pointer (escaping `~` and `/` in the segments), which prefixed with `#` yields the URI fragment form such responses use:
 
@@ -267,7 +277,7 @@ JSON;
 assert($body === $expected);
 ```
 
-That `$body` is the complete response payload – it just has to be sent with the media type and status
+That `$body` is the complete response payload - it just has to be sent with the media type and status
 code the RFC prescribes:
 
 ```php (no test)
@@ -282,3 +292,7 @@ $response = $responseFactory->createResponse(400)
     ->withHeader('Content-Type', 'application/problem+json');
 $response->getBody()->write($body);
 ```
+
+## License
+
+MIT

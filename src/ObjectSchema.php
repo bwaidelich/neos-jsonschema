@@ -131,7 +131,59 @@ final readonly class ObjectSchema implements Schema
         );
     }
 
+    /**
+     * The same schema with a `description` for each of the named properties, keyed by property name:
+     * `$schema->withPropertyDescriptions(title: 'The title as printed on the cover')`.
+     *
+     * A description replaces whatever the property's schema describes itself as, since it is the more specific of
+     * the two: the same `Slug` may be "the post's address" in one place and "the author's handle" in another.
+     *
+     * A nullable property (see {@see Nullable}) is described on its substantive branch, which is what a reader looks
+     * at to learn what the property is. Anything else that has no `description` of its own – a genuine union, a
+     * `$ref` – fails loud rather than dropping the description, and so does a property this schema does not declare.
+     */
+    public function withPropertyDescriptions(string ...$descriptions): self
+    {
+        $properties = $this->properties === null ? [] : iterator_to_array($this->properties);
+        foreach ($descriptions as $name => $description) {
+            if (!is_string($name)) {
+                throw new \InvalidArgumentException('Property descriptions have to be a map with string keys', 1791456494);
+            }
+            if (!isset($properties[$name])) {
+                throw new \InvalidArgumentException(sprintf('Cannot describe property "%s": the object schema declares no such property', $name), 1791456495);
+            }
+            $properties[$name] = self::describe($properties[$name], $description)
+                ?? throw new \InvalidArgumentException(sprintf('Cannot describe property "%s": its schema has no `description` of its own', $name), 1791456496);
+        }
+        return $this->with(properties: ObjectProperties::create(...$properties));
+    }
 
+    private static function describe(Schema $schema, string $description): Schema|null
+    {
+        if (
+            $schema instanceof StringSchema
+            || $schema instanceof IntegerSchema
+            || $schema instanceof NumberSchema
+            || $schema instanceof BooleanSchema
+            || $schema instanceof ArraySchema
+            || $schema instanceof ObjectSchema
+        ) {
+            return $schema->with(description: $description);
+        }
+        if ($schema instanceof AnySchema) {
+            return AnySchema::create($schema->title, $description, $schema->default, $schema->examples, $schema->readOnly, $schema->writeOnly, $schema->deprecated, $schema->comment);
+        }
+        // only the `anyOf` that Nullable::wrap() builds, so that wrapping the described branch again restores it
+        if (!$schema instanceof AnyOfSchema) {
+            return null;
+        }
+        $substantive = Nullable::unwrap($schema);
+        if ($substantive === $schema) {
+            return null;
+        }
+        $described = self::describe($substantive, $description);
+        return $described === null ? null : Nullable::wrap($described);
+    }
 
     public function jsonSerialize(): array
     {

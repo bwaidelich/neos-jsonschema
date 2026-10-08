@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 namespace Neos\JsonSchema\Tests;
 
+use Neos\JsonSchema\AnyOfSchema;
+use Neos\JsonSchema\AnySchema;
+use Neos\JsonSchema\IntegerSchema;
+use Neos\JsonSchema\Nullable;
 use Neos\JsonSchema\ObjectSchema;
+use Neos\JsonSchema\ReferenceSchema;
 use Neos\JsonSchema\Schema;
 use Neos\JsonSchema\StringSchema;
 use Neos\JsonSchema\Support\ObjectProperties;
@@ -14,6 +19,7 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(ObjectSchema::class)]
 #[CoversClass(ObjectProperties::class)]
 #[CoversClass(StringSchema::class)]
+#[CoversClass(Nullable::class)]
 final class ObjectSchemaTest extends TestCase
 {
     public function test_fully_fledged(): void
@@ -91,4 +97,73 @@ final class ObjectSchemaTest extends TestCase
         self::assertJsonStringEqualsJsonString('{"type":"object","properties":{}}', json_encode($schema, JSON_THROW_ON_ERROR));
     }
 
+    public function test_withPropertyDescriptions_describes_the_named_properties(): void
+    {
+        $schema = ObjectSchema::create(
+            description: 'A book',
+            properties: ObjectProperties::create(
+                title: StringSchema::create(description: 'Some string', minLength: 1),
+                pages: IntegerSchema::create(),
+                isbn: StringSchema::create(),
+            ),
+            required: ['title'],
+        );
+        $described = $schema->withPropertyDescriptions(title: 'As printed on the cover', pages: 'Number of printed pages');
+        self::assertJsonStringEqualsJsonString('{"type":"object","description":"A book","properties":{"title":{"type":"string","description":"As printed on the cover","minLength":1},"pages":{"type":"integer","description":"Number of printed pages"},"isbn":{"type":"string"}},"required":["title"]}', json_encode($described, JSON_THROW_ON_ERROR));
+        // the original schema is left untouched
+        self::assertJsonStringEqualsJsonString('{"type":"object","description":"A book","properties":{"title":{"type":"string","description":"Some string","minLength":1},"pages":{"type":"integer"},"isbn":{"type":"string"}},"required":["title"]}', json_encode($schema, JSON_THROW_ON_ERROR));
+    }
+
+    public function test_withPropertyDescriptions_describes_the_substantive_branch_of_a_nullable_property(): void
+    {
+        $schema = ObjectSchema::create(properties: ObjectProperties::create(subtitle: Nullable::wrap(StringSchema::create())));
+        $described = $schema->withPropertyDescriptions(subtitle: 'Below the title, if any');
+        self::assertJsonStringEqualsJsonString('{"type":"object","properties":{"subtitle":{"anyOf":[{"type":"string","description":"Below the title, if any"},{"type":"null"}]}}}', json_encode($described, JSON_THROW_ON_ERROR));
+    }
+
+    public function test_withPropertyDescriptions_describes_an_unconstrained_property(): void
+    {
+        $schema = ObjectSchema::create(properties: ObjectProperties::create(payload: AnySchema::create(title: 'Payload')));
+        $described = $schema->withPropertyDescriptions(payload: 'Whatever the data source returned');
+        self::assertJsonStringEqualsJsonString('{"type":"object","properties":{"payload":{"title":"Payload","description":"Whatever the data source returned"}}}', json_encode($described, JSON_THROW_ON_ERROR));
+    }
+
+    public function test_withPropertyDescriptions_rejects_a_genuine_union(): void
+    {
+        $schema = ObjectSchema::create(properties: ObjectProperties::create(id: AnyOfSchema::create(StringSchema::create(), IntegerSchema::create())));
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionCode(1791456496);
+        $schema->withPropertyDescriptions(id: 'The identifier');
+    }
+
+    public function test_withPropertyDescriptions_rejects_a_reference(): void
+    {
+        $schema = ObjectSchema::create(properties: ObjectProperties::create(author: ReferenceSchema::create('#/$defs/author')));
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionCode(1791456496);
+        $schema->withPropertyDescriptions(author: 'Who wrote it');
+    }
+
+    public function test_withPropertyDescriptions_rejects_an_undeclared_property(): void
+    {
+        $schema = ObjectSchema::create(properties: ObjectProperties::create(title: StringSchema::create()));
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionCode(1791456495);
+        $schema->withPropertyDescriptions(titel: 'Typo');
+    }
+
+    public function test_withPropertyDescriptions_rejects_any_name_on_a_schema_without_properties(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionCode(1791456495);
+        ObjectSchema::create()->withPropertyDescriptions(title: 'The title');
+    }
+
+    public function test_withPropertyDescriptions_rejects_positional_arguments(): void
+    {
+        $schema = ObjectSchema::create(properties: ObjectProperties::create(title: StringSchema::create()));
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionCode(1791456494);
+        $schema->withPropertyDescriptions('The title');
+    }
 }

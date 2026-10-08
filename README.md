@@ -214,6 +214,35 @@ assert(json_encode(AnySchema::create()) === '{}');
 assert(AnySchema::create()->validate(['anything' => [1, 2]])->valid === true);
 ```
 
+### Describing properties
+
+`withPropertyDescriptions()` sets the `description` of the named properties, which comes in handy when the property
+schemas come from elsewhere – a value object's own `schema()`, say – and do not know what they mean in *this* object.
+A description replaces the one a property schema already has, and a nullable property is described on its substantive
+branch:
+
+```php
+$book = ObjectSchema::create(
+    properties: ObjectProperties::create(
+        title: StringSchema::create(minLength: 1),
+        subtitle: Nullable::wrap(StringSchema::create()),
+    ),
+)->withPropertyDescriptions(title: 'As printed on the cover', subtitle: 'Below the title, if any');
+
+assert(json_encode($book) === '{"type":"object","properties":{"title":{"type":"string","description":"As printed on the cover","minLength":1},'
+    . '"subtitle":{"anyOf":[{"type":"string","description":"Below the title, if any"},{"type":"null"}]}}}');
+```
+
+A property the object does not declare, or one without a `description` of its own (a genuine union or a `$ref`), is
+rejected:
+
+```php
+ObjectSchema::create(properties: ObjectProperties::create(title: StringSchema::create()))
+    ->withPropertyDescriptions(titel: 'Typo');
+
+// Exception: Cannot describe property "titel": the object schema declares no such property
+```
+
 ## Objects
 
 An object can expose its type to other packages by implementing

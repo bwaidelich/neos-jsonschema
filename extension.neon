@@ -1,0 +1,11 @@
+services:
+	- Neos\JsonSchema\PHPStan\SchemaResolver
+	-
+		class: Neos\JsonSchema\PHPStan\IncompatibleValidateArgumentRule
+		tags: [phpstan.rules.rule]
+	-
+		class: Neos\JsonSchema\PHPStan\InconsistentSchemaRule
+		tags: [phpstan.rules.rule]
+	-
+		class: Neos\JsonSchema\PHPStan\NotMemoizedSchemaRule
+		tags: [phpstan.rules.rule]

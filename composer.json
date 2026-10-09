@@ -17,6 +17,9 @@
         "friendsofphp/php-cs-fixer": "^3",
         "phpunit/phpunit": "^10 || ^11 || ^12"
     },
+    "suggest": {
+        "phpstan/phpstan": "To detect values that can never satisfy a schema, and inconsistent schemas, at design time (see extension.neon)"
+    },
     "autoload": {
         "psr-4": {
             "Neos\\JsonSchema\\": "src/"
@@ -25,6 +28,13 @@
     "autoload-dev": {
         "psr-4": {
             "Neos\\JsonSchema\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "phpstan": {
+            "includes": [
+                "extension.neon"
+            ]
         }
     },
     "scripts": {

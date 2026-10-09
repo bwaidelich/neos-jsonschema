@@ -13,6 +13,7 @@ PHP Classes to represent and validate against [JSON Schemas](https://json-schema
     * [Unconstrained members](#unconstrained-members)
     * [Objects](#objects)
   * [Turning `Issues` into an RFC 9457 Problem Details response](#turning-issues-into-an-rfc-9457-problem-details-response)
+  * [Static analysis with PHPStan](#static-analysis-with-phpstan)
   * [License](#license)
 <!-- TOC -->
 
@@ -325,6 +326,39 @@ $response = $responseFactory->createResponse(400)
     ->withHeader('Content-Type', 'application/problem+json');
 $response->getBody()->write($body);
 ```
+
+## Static analysis with PHPStan
+
+This package ships a [PHPStan](https://phpstan.org) extension that detects, at design time, a schema that cannot be
+right. With [phpstan/extension-installer](https://github.com/phpstan/extension-installer) it is enabled
+automatically, otherwise include it in the `phpstan.neon` of your project:
+
+```neon
+includes:
+  - vendor/neos/jsonschema/extension.neon
+```
+
+It reports:
+
+| Identifier                                | Problem                                                                                                                                                               |
+|-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `jsonSchema.validate.incompatibleValue`   | A value passed to `validate()` that can *never* conform to the schema, e.g. an `int` passed to a `StringSchema`, or an array shape that lacks a required property     |
+| `jsonSchema.schema.inconsistent.<kind>`   | A schema returned by `ProvidesSchema::schema()` that contradicts itself (`bounds`, `pattern`, `default`, `const`, `examples`, `enum`, `required` or `combinator`)    |
+| `jsonSchema.schema.unavailable`           | A `ProvidesSchema::schema()` implementation that throws                                                                                                               |
+| `jsonSchema.schema.notMemoized`           | The broken memoization idiom `static $schema; return $schema ?? …;` that rebuilds the schema on every call (`??=` was meant)                                          |
+
+It also types the memoization idiom `static $schema = null; return $schema ??= XSchema::create(...);` inside
+`ProvidesSchema::schema()` as the schema it builds. Without the extension, PHPStan types the static variable as `mixed`
+and reports the return type of `schema()`, unless the variable is annotated with `/** @var XSchema|null $schema */`.
+
+To know the actual schema, the extension **calls** `schema()` of every `ProvidesSchema` class during the analysis, so
+those classes have to be autoloadable and their `schema()` free of side effects. Where the schema is not known
+like that, only the static type of the schema (`StringSchema`, `ObjectSchema`, …) is taken into account.
+
+Only values that can never be valid are reported: `mixed`, `int|string` or an array of unknown shape are not.
+
+The extension does not compare a class's properties or constructor with its schema, because how they map onto each
+other is a convention of the code consuming the schema, not of JSON Schema.
 
 ## License
 

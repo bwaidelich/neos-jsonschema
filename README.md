@@ -347,6 +347,10 @@ It reports:
 | `jsonSchema.schema.unavailable`           | A `ProvidesSchema::schema()` implementation that throws                                                                                                               |
 | `jsonSchema.schema.notMemoized`           | The broken memoization idiom `static $schema; return $schema ?? …;` that rebuilds the schema on every call (`??=` was meant)                                          |
 
+It also types the memoization idiom `static $schema = null; return $schema ??= XSchema::create(...);` inside
+`ProvidesSchema::schema()` as the schema it builds. Without the extension, PHPStan types the static variable as `mixed`
+and reports the return type of `schema()`, unless the variable is annotated with `/** @var XSchema|null $schema */`.
+
 To know the actual schema, the extension **calls** `schema()` of every `ProvidesSchema` class during the analysis, so
 those classes have to be autoloadable and their `schema()` free of side effects. Where the schema is not known
 like that, only the static type of the schema (`StringSchema`, `ObjectSchema`, …) is taken into account.

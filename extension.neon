@@ -9,3 +9,6 @@ services:
 	-
 		class: Neos\JsonSchema\PHPStan\NotMemoizedSchemaRule
 		tags: [phpstan.rules.rule]
+	-
+		class: Neos\JsonSchema\PHPStan\MemoizedSchemaTypeResolver
+		tags: [phpstan.broker.expressionTypeResolverExtension]

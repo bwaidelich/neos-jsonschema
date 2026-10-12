@@ -128,7 +128,10 @@ final class ValueCompatibility
                 if ($schema->additionalProperties === false) {
                     return sprintf('property "%s" is not declared and additional properties are not allowed', $name);
                 }
-                continue;
+                if (!$schema->additionalProperties instanceof Schema) {
+                    continue;
+                }
+                $propertySchema = $schema->additionalProperties;
             }
             $reason = self::whyNeverValid($valueType, $propertySchema);
             if ($reason !== null) {

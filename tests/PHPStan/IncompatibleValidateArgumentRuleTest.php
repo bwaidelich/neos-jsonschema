@@ -80,4 +80,18 @@ final class IncompatibleValidateArgumentRuleTest extends RuleTestCase
             ],
         ]);
     }
+
+    public function testUndeclaredPropertiesAreCheckedAgainstAnAdditionalPropertiesSchema(): void
+    {
+        $this->analyse([__DIR__ . '/Fixtures/CoordinatesCalls.php'], [
+            [
+                'Value passed to Neos\\JsonSchema\\Tests\\PHPStan\\Fixtures\\Coordinates::schema()->validate() can never be valid: property "language": expected a string, got int.',
+                13,
+            ],
+            [
+                'Value passed to Neos\\JsonSchema\\Tests\\PHPStan\\Fixtures\\Coordinates::schema()->validate() can never be valid: property "language": \'\' is invalid: Value must be at least 1 character(s) long.',
+                14,
+            ],
+        ]);
+    }
 }

@@ -212,6 +212,11 @@ final class Validator
         if ($extra !== [] && $schema->additionalProperties === false) {
             $issues[] = Issue::create($path, IssueCode::UnrecognizedKeys, sprintf('Unrecognized propert%s: %s', count($extra) === 1 ? 'y' : 'ies', implode(', ', $extra)));
         }
+        if ($schema->additionalProperties instanceof Schema) {
+            foreach ($extra as $name) {
+                $issues = [...$issues, ...self::check($schema->additionalProperties, $value[$name], [...$path, $name])];
+            }
+        }
         if ($schema->propertyNames !== null) {
             foreach (array_keys($value) as $key) {
                 foreach (self::validateString($schema->propertyNames, (string) $key, [...$path, $key]) as $issue) {

@@ -167,6 +167,17 @@ assert($result->issues->codes() === ['unrecognized_keys']);
 assert((string) $result->issues === '<root>: Unrecognized property: isbn (unrecognized_keys)');
 ```
 
+Instead of `true`/`false`, `additionalProperties` can be a schema that every undeclared property has to satisfy. Combined with `propertyNames` this describes a map:
+
+```php
+$map = ObjectSchema::create(
+    propertyNames: StringSchema::create(minLength: 1),
+    additionalProperties: StringSchema::create(minLength: 1),
+);
+assert($map->validate(['language' => 'de', 'country' => 'at'])->valid === true);
+assert($map->validate(['language' => ''])->issues->codes() === ['too_short']);
+```
+
 ### Nullable values
 
 JSON Schema has no nullability flag: "this, or null" is a union with the null type. `Nullable::wrap()` builds it idempotently, so a schema that already accepts null is handed back untouched:

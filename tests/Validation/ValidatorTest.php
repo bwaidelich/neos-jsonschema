@@ -121,6 +121,26 @@ final class ValidatorTest extends TestCase
         self::assertSame([IssueCode::InvalidPattern->value], $this->codes($schema->validate(['ABC' => 1])));
     }
 
+    public function testObjectAdditionalPropertiesSchema(): void
+    {
+        $schema = ObjectSchema::create(additionalProperties: StringSchema::create(minLength: 1));
+        self::assertTrue($schema->validate([])->valid);
+        self::assertTrue($schema->validate(['language' => 'de', 'country' => 'at'])->valid);
+        self::assertSame([IssueCode::InvalidType->value], $this->codes($schema->validate(['language' => 1])));
+        self::assertSame([IssueCode::TooShort->value], $this->codes($schema->validate(['language' => ''])));
+        self::assertSame([['language']], array_map(static fn($issue) => $issue->path, $schema->validate(['language' => 1])->issues->toArray()));
+    }
+
+    public function testObjectAdditionalPropertiesSchemaOnlyAppliesToUndeclaredProperties(): void
+    {
+        $schema = ObjectSchema::create(
+            properties: ObjectProperties::create(pages: IntegerSchema::create()),
+            additionalProperties: StringSchema::create(),
+        );
+        self::assertTrue($schema->validate(['pages' => 412, 'title' => 'Dune'])->valid);
+        self::assertSame([IssueCode::InvalidType->value], $this->codes($schema->validate(['pages' => 412, 'year' => 1965])));
+    }
+
     public function testArrayItemsAndConstraints(): void
     {
         $schema = ArraySchema::create(items: StringSchema::create(), minItems: 1, uniqueItems: true);

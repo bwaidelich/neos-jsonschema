@@ -32,7 +32,7 @@ final readonly class ObjectSchema implements Schema
         public array|null $const,
         public ObjectProperties|null $properties,
         // TODO add patternProperties
-        public bool|null $additionalProperties,
+        public bool|Schema|null $additionalProperties,
         // TODO add unevaluatedProperties
         public array|null $required,
         public StringSchema|null $propertyNames,
@@ -64,7 +64,7 @@ final readonly class ObjectSchema implements Schema
         string|null $comment = null,
         array|null $const = null,
         ObjectProperties|null $properties = null,
-        bool|null $additionalProperties = null,
+        bool|Schema|null $additionalProperties = null,
         array|null $required = null,
         StringSchema|null $propertyNames = null,
         int|null $minProperties = null,
@@ -106,7 +106,7 @@ final readonly class ObjectSchema implements Schema
         string|null $comment = null,
         array|null $const = null,
         ObjectProperties|null $properties = null,
-        bool|null $additionalProperties = null,
+        bool|Schema|null $additionalProperties = null,
         array|null $required = null,
         StringSchema|null $propertyNames = null,
         int|null $minProperties = null,

@@ -91,4 +91,10 @@ final class ObjectSchemaTest extends TestCase
         self::assertJsonStringEqualsJsonString('{"type":"object","properties":{}}', json_encode($schema, JSON_THROW_ON_ERROR));
     }
 
+    public function test_additionalPropertiesSchema(): void
+    {
+        $schema = ObjectSchema::create(additionalProperties: StringSchema::create(minLength: 1));
+        self::assertJsonStringEqualsJsonString('{"type":"object","additionalProperties":{"type":"string","minLength":1}}', json_encode($schema, JSON_THROW_ON_ERROR));
+        self::assertSame($schema->additionalProperties, ObjectSchema::create()->with(additionalProperties: $schema->additionalProperties)->additionalProperties);
+    }
 }

@@ -1,5 +1,15 @@
+includes:
+  - extension.neon
 parameters:
   level: max
   paths:
     - src
     - tests
+  excludePaths:
+    # intentionally broken code the extension's rules are tested against
+    - tests/PHPStan/Fixtures
+  ignoreErrors:
+    -
+      # the validator is tested against values that are invalid on purpose
+      identifier: jsonSchema.validate.incompatibleValue
+      path: tests/Validation/ValidatorTest.php

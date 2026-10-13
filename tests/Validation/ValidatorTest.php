@@ -82,6 +82,20 @@ final class ValidatorTest extends TestCase
         self::assertSame([IssueCode::InvalidPattern->value], $this->codes($result));
     }
 
+    public function testInvalidUtf8IsReportedAsAnInvalidValue(): void
+    {
+        // before, preg_match() failed on the subject and the pattern was misreported as unenforceable
+        self::assertSame([IssueCode::InvalidType->value], $this->codes(StringSchema::create(pattern: '^[a-z]+$')->validate("\xff")));
+        self::assertSame([IssueCode::InvalidType->value], $this->codes(StringSchema::create(maxLength: 1)->validate("a\xff")));
+        self::assertSame([IssueCode::InvalidType->value], $this->codes(StringSchema::create()->validate("\xff")));
+    }
+
+    public function testInvalidUtf8PropertyNameIsReportedAsAnInvalidValue(): void
+    {
+        $schema = ObjectSchema::create(propertyNames: StringSchema::create(pattern: '^[a-z]+$'));
+        self::assertSame([IssueCode::InvalidType->value], $this->codes($schema->validate(["\xff" => 1])));
+    }
+
     public function testStringFormatViolation(): void
     {
         $result = StringSchema::create(format: StringFormat::email)->validate('not-an-email');

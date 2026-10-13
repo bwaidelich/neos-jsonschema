@@ -91,6 +91,10 @@ final class Validator
         if (!is_string($value)) {
             return [Issue::create($path, IssueCode::InvalidType, sprintf('Expected a string, got %s', get_debug_type($value)))];
         }
+        // a JSON string is a sequence of Unicode characters, so a PHP string with invalid UTF-8 can never be one (it would also break the "u" regular expressions and mb_strlen below)
+        if (!mb_check_encoding($value, 'UTF-8')) {
+            return [Issue::create($path, IssueCode::InvalidType, 'Expected a string, got a byte sequence that is not valid UTF-8')];
+        }
         if ($schema->enum !== null && !in_array($value, $schema->enum, true)) {
             return [Issue::create($path, IssueCode::InvalidEnumValue, sprintf('Value "%s" is not one of the allowed values', $value))];
         }
